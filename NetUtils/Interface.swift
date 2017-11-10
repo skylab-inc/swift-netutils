@@ -1,11 +1,6 @@
 //  Copyright (c) 2015 Stefan van den Oord. All rights reserved.
 
 import Foundation
-#if swift(>=3.2)
-    import Darwin
-#else
-    import ifaddrs
-#endif
 
 /**
  * This class represents a network interface in your system. For example, `en0` with a certain IP address.
@@ -52,7 +47,7 @@ open class Interface : CustomStringConvertible, CustomDebugStringConvertible {
             var ifaddrPtr = ifaddrsPtr
             while ifaddrPtr != nil {
                 let addr = ifaddrPtr?.pointee.ifa_addr.pointee
-                if addr?.sa_family == UInt8(AF_INET) || addr?.sa_family == UInt8(AF_INET6) {
+                if UInt8(addr!.sa_family) == UInt8(AF_INET) || UInt8(addr!.sa_family) == UInt8(AF_INET6) {
                     interfaces.append(Interface(data: (ifaddrPtr?.pointee)!))
                 }
                 ifaddrPtr = ifaddrPtr?.pointee.ifa_next
@@ -89,16 +84,16 @@ open class Interface : CustomStringConvertible, CustomDebugStringConvertible {
 
     convenience init(data:ifaddrs) {
         let flags = Int32(data.ifa_flags)
-        let broadcastValid : Bool = ((flags & IFF_BROADCAST) == IFF_BROADCAST)
+        let broadcastValid : Bool = ((flags & Int32(IFF_BROADCAST)) == Int32(IFF_BROADCAST))
         self.init(name: String(cString: data.ifa_name),
             family: Interface.extractFamily(data),
             address: Interface.extractAddress(data.ifa_addr.pointee),
             netmask: Interface.extractAddress(data.ifa_netmask.pointee),
-            running: ((flags & IFF_RUNNING) == IFF_RUNNING),
-            up: ((flags & IFF_UP) == IFF_UP),
-            loopback: ((flags & IFF_LOOPBACK) == IFF_LOOPBACK),
-            multicastSupported: ((flags & IFF_MULTICAST) == IFF_MULTICAST),
-            broadcastAddress: ((broadcastValid && data.ifa_dstaddr != nil) ? Interface.extractAddress(data.ifa_dstaddr.pointee) : nil))
+            running: ((flags & Int32(IFF_RUNNING)) == Int32(IFF_RUNNING)),
+            up: ((flags & Int32(IFF_UP)) == Int32(IFF_UP)),
+            loopback: ((flags & Int32(IFF_LOOPBACK)) == Int32(IFF_LOOPBACK)),
+            multicastSupported: ((flags & Int32(IFF_MULTICAST)) == Int32(IFF_MULTICAST)),
+            broadcastAddress: ((broadcastValid && data.ifa_addr != nil) ? Interface.extractAddress(data.ifa_addr.pointee) : nil))
     }
     
     fileprivate static func extractFamily(_ data:ifaddrs) -> Family {
@@ -132,7 +127,7 @@ open class Interface : CustomStringConvertible, CustomDebugStringConvertible {
         var addr = address
         var address : String? = nil
         var hostname = [CChar](repeating: 0, count: Int(2049))
-        if (getnameinfo(&addr, socklen_t(addr.sa_len), &hostname,
+        if (getnameinfo(&addr, UInt32(MemoryLayout<sockaddr>.size), &hostname,
                 socklen_t(hostname.count), nil, socklen_t(0), NI_NUMERICHOST) == 0) {
             address = String(cString: hostname)
         }
@@ -203,7 +198,7 @@ open class Interface : CustomStringConvertible, CustomDebugStringConvertible {
     /// Extracted from `ifaddrs->ifa_netmask`, supports both IPv4 and IPv6.
     open let netmask : String?
     
-    /// Extracted from `ifaddrs->ifa_dstaddr`. Not applicable for IPv6.
+    /// Extracted from `ifaddrs->ifa_addr`. Not applicable for IPv6.
     open let broadcastAddress : String?
     
     fileprivate let running : Bool
